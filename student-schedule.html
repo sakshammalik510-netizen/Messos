@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessOS - Schedule</title>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="icon" type="image/png" href="logo.png">
+</head>
+<body>
+    <header class="topbar" id="topbar"></header>
+    <main class="page">
+        <h1>Meal schedule</h1>
+        <p class="sub">Plan ahead. You can change a meal any time until its cut-off.</p>
+        <div class="card inline">
+            <button class="btn light" id="prev">&larr; Previous day</button>
+            <div><label for="day">Date</label><input type="date" id="day"></div>
+            <button class="btn light" id="next">Next day &rarr;</button>
+        </div>
+        <div class="grid" id="meals"></div>
+    </main>
+    <script src="js/api.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/meals.js"></script>
+    <script src="js/student-schedule.js"></script>
+</body>
+</html>

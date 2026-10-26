@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessOS - Dashboard</title>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="icon" type="image/png" href="logo.png">
+</head>
+<body>
+    <header class="topbar" id="topbar"></header>
+    <main class="page">
+        <h1 id="hello">Hello</h1>
+        <p class="sub">Today's meals. Opt in or out before the cut-off. After that the meal is locked for the kitchen.</p>
+        <div class="grid" id="summary"></div>
+        <div style="height:14px"></div>
+        <div class="grid" id="meals"><div class="card empty">Loading meals...</div></div>
+    </main>
+    <script src="js/api.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/meals.js"></script>
+    <script src="js/student-dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessOS - My QR</title>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="icon" type="image/png" href="logo.png">
+</head>
+<body>
+    <header class="topbar" id="topbar"></header>
+    <main class="page">
+        <div class="card qr-card">
+            <h1 id="title">My meal QR</h1>
+            <p class="sub" id="info">Loading...</p>
+            <div id="qrcode"></div>
+            <div class="timer-bar"><i id="bar" style="width:100%"></i></div>
+            <p class="muted" id="timer"></p>
+            <p class="muted">This code changes every 30 seconds and works only once. A screenshot will not work, so show the live screen to the staff.</p>
+            <a class="btn light" href="student-dashboard.html">Back to dashboard</a>
+        </div>
+    </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/student-qr.js"></script>
+</body>
+</html>

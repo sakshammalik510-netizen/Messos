@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessOS - Scan</title>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="icon" type="image/png" href="logo.png">
+</head>
+<body>
+    <header class="topbar" id="topbar"></header>
+    <main class="page">
+        <h1>Dining hall scanner</h1>
+        <p class="sub">Scan the student's live QR code. Green means serve the meal. Red means do not.</p>
+
+        <div class="result idle" id="result">Waiting for a scan<small>point the camera at a student's QR</small></div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Camera</h2>
+                <div id="reader"></div>
+                <div class="row" style="margin-top:10px">
+                    <button class="btn" id="start-cam">Start camera</button>
+                    <button class="btn light" id="stop-cam" disabled>Stop camera</button>
+                </div>
+                <p class="muted" id="cam-note">The camera works on https or on localhost only. If it will not start, use the box on the right.</p>
+            </div>
+            <div class="card">
+                <h2>Type or paste a code</h2>
+                <form id="manual-form">
+                    <label for="manual">QR text</label>
+                    <input id="manual" placeholder="paste the code here" autocomplete="off">
+                    <div style="margin-top:10px"><button class="btn" type="submit">Check</button></div>
+                </form>
+                <h2 style="margin-top:18px">This session</h2>
+                <p><span class="badge ACCEPTED" id="count-ok">0 served</span> <span class="badge REJECTED" id="count-no">0 rejected</span></p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Recent scans</h2>
+            <div class="table-wrap"><table>
+                <thead><tr><th>Time</th><th>Student</th><th>Result</th></tr></thead>
+                <tbody id="recent"><tr><td colspan="3" class="empty">Nothing scanned yet</td></tr></tbody>
+            </table></div>
+        </div>
+    </main>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/staff-scan.js"></script>
+</body>
+</html>

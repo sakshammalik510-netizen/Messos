@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessOS - Admin</title>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="icon" type="image/png" href="logo.png">
+</head>
+<body>
+    <header class="topbar" id="topbar"></header>
+    <main class="page">
+        <h1 id="title">Admin dashboard</h1>
+        <p class="sub">Head-count forecast, meal setup, records and food waste at a glance.</p>
+
+        <div class="card inline">
+            <div><label for="day">Date</label><input type="date" id="day"></div>
+            <div><label for="slot">Meal (for notes, ledger and audit)</label><select id="slot"></select></div>
+        </div>
+
+        <div class="tabs" id="tabs">
+            <button data-tab="forecast" class="active">Forecast</button>
+            <button data-tab="notes">Diet notes</button>
+            <button data-tab="ledger" data-admin>Ledger</button>
+            <button data-tab="audit" data-admin>Audit</button>
+            <button data-tab="create" data-admin>Add meal</button>
+            <button data-tab="users" data-admin>Users</button>
+        </div>
+
+        <section class="panel active" id="tab-forecast">
+            <div id="forecast"></div>
+        </section>
+
+        <section class="panel" id="tab-notes"><div class="card">
+            <h2>Diet notes of students who are opted in</h2>
+            <div class="table-wrap"><table><thead><tr><th>Student</th><th>Reg. no.</th><th>Preference</th><th>Allergies</th></tr></thead><tbody id="notes"></tbody></table></div>
+        </div></section>
+
+        <section class="panel" id="tab-ledger"><div class="card">
+            <h2>Consumption ledger</h2>
+            <div class="table-wrap"><table><thead><tr><th>Student</th><th>Reg. no.</th><th>Served by</th><th>Time</th></tr></thead><tbody id="ledger"></tbody></table></div>
+        </div></section>
+
+        <section class="panel" id="tab-audit"><div class="card">
+            <h2>Scan audit (every scan, including rejected)</h2>
+            <div class="table-wrap"><table><thead><tr><th>Time</th><th>Student</th><th>Result</th><th>Reason</th></tr></thead><tbody id="audit"></tbody></table></div>
+        </div></section>
+
+        <section class="panel" id="tab-create"><div class="card">
+            <h2>Add a meal</h2>
+            <p class="muted">Every student is opted in by default. Times are in Indian time.</p>
+            <form id="slot-form">
+                <div class="form-grid">
+                    <div><label for="f-date">Date</label><input type="date" id="f-date" required></div>
+                    <div><label for="f-meal">Meal</label>
+                        <select id="f-meal"><option>BREAKFAST</option><option>LUNCH</option><option>DINNER</option></select></div>
+                    <div><label for="f-cutoff">Cut-off time</label><input type="time" id="f-cutoff" required></div>
+                    <div><label for="f-start">Serving starts</label><input type="time" id="f-start" required></div>
+                    <div><label for="f-end">Serving ends</label><input type="time" id="f-end" required></div>
+                </div>
+                <label for="f-menu">Menu</label>
+                <input id="f-menu" maxlength="300" placeholder="e.g. Dal, rice, roti, salad">
+                <div style="margin-top:14px"><button class="btn" type="submit">Create meal</button></div>
+            </form>
+        </div></section>
+
+        <section class="panel" id="tab-users"><div class="card">
+            <h2>All users</h2>
+            <div class="table-wrap"><table><thead><tr><th>Name</th><th>E-mail</th><th>Reg. no.</th><th>Role</th><th>Verified</th></tr></thead><tbody id="users"></tbody></table></div>
+        </div></section>
+    </main>
+    <script src="js/api.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

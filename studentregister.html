@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessOS - Register</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="logo.png">
+</head>
+
+<body>
+    <div class="container">
+
+        <div class="form-box register" id="registerform">
+            <form id="register-form">
+                <img src="logo.png" alt="Site logo" class="site-logo">
+                <h1>Register</h1>
+                <div class="input-box">
+                    <label for="name">Full name:</label>
+                    <input type="text" id="name" name="name" placeholder="Your full name" minlength="2" autocomplete="name" required>
+                </div>
+                <div class="input-box">
+                    <label for="regNo">Registration number:</label>
+                    <input type="text" id="regNo" name="regNo" placeholder="Registration no." minlength="3" required>
+                </div>
+                <div class="input-box">
+                    <label for="email">E-mail Id:</label>
+                    <input type="email" id="email" name="email" placeholder="college e-mail id" autocomplete="username" required>
+                </div>
+                <div class="input-box">
+                    <label for="password">Create Password:</label>
+                    <input type="password" id="password" name="password" placeholder="At least 8 characters" minlength="8" autocomplete="new-password" required>
+                </div>
+                <div class="input-box">
+                    <label for="confirm">Confirm Password:</label>
+                    <input type="password" id="confirm" name="confirm" placeholder="Type the password again" autocomplete="new-password" required>
+                </div>
+                <button type="submit" class="btn" id="submit-btn">Register</button>
+                <p class="msg" id="msg"></p>
+            </form>
+        </div>
+        <div class="toggle-box">
+            <div class="toggle-panel toggle-left">
+                <h1>Hello new user!</h1>
+                <p>Already have an account?</p>
+                <a href="studentlogin.html" class="btn login-btn">Login Now</a>
+            </div>
+        </div>
+    </div>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>

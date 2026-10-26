@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessOS - Diet log</title>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="icon" type="image/png" href="logo.png">
+</head>
+<body>
+    <header class="topbar" id="topbar"></header>
+    <main class="page">
+        <h1>Dietary preference log</h1>
+        <p class="sub">Tell the kitchen about your food needs. Every update is saved as a new entry, so your history is kept.</p>
+
+        <div class="card">
+            <h2>Update my preferences</h2>
+            <form id="diet-form">
+                <label for="preference">Food preference or note</label>
+                <input id="preference" maxlength="200" placeholder="e.g. no onion or garlic">
+                <label for="allergies">Allergies</label>
+                <input id="allergies" maxlength="200" placeholder="e.g. peanuts">
+                <div style="margin-top:14px"><button class="btn" type="submit">Save entry</button></div>
+            </form>
+        </div>
+
+        <div class="card" id="current-card" style="display:none">
+            <h2>Current entry</h2>
+            <div id="current"></div>
+        </div>
+
+        <div class="card">
+            <h2>History</h2>
+            <div class="table-wrap"><table>
+                <thead><tr><th>Date</th><th>Preference</th><th>Allergies</th></tr></thead>
+                <tbody id="history"><tr><td colspan="3" class="empty">Loading...</td></tr></tbody>
+            </table></div>
+        </div>
+    </main>
+    <script src="js/api.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/student-diet.js"></script>
+</body>
+</html>

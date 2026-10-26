@@ -1,0 +1,105 @@
+/* Styles for the login and register pages */
+* {
+    font-family: sans-serif;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 16px;
+    background: linear-gradient(lightgray, lightblue);
+}
+
+.container {
+    display: flex;
+    flex-direction: row-reverse;          /* form on the right, welcome panel on the left */
+    width: min(850px, 100%);
+    min-height: 550px;                    /* grows if the form needs more room */
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 5px 10px black;
+    overflow: hidden;
+}
+
+.form-box {
+    width: 50%;
+    background: seagreen;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px 0;
+}
+
+form {
+    background: #fff;
+    width: 80%;
+    border-radius: 10px;
+    padding: 10px 0 18px;
+}
+
+.site-logo {
+    display: block;
+    width: 70px;
+    height: 70px;
+    margin: 12px auto;
+}
+
+.input-box {
+    margin: 10px 0;
+}
+
+.input-box label {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 14px;
+}
+
+.input-box input {
+    width: 85%;
+    padding: 7px;
+    border: 1px solid gray;
+    border-radius: 6px;
+}
+
+.btn {
+    width: 55%;
+    height: 30px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px outset buttonborder;
+    background: buttonface;
+    text-decoration: none;
+    color: black;
+    cursor: pointer;
+}
+
+.btn:hover { background: #e3f1e9; }
+.btn:disabled { opacity: 0.6; cursor: wait; }
+
+.toggle-box {
+    width: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+}
+
+/* message shown under the button: red for errors, green for success */
+.msg { min-height: 18px; margin: 10px 14px 0; font-size: 13px; }
+.msg.error { color: #b00020; }
+.msg.ok { color: #1b6b3a; }
+
+/* phones: stack the form on top of the welcome panel */
+@media (max-width: 700px) {
+    .container { flex-direction: column; }
+    .form-box, .toggle-box { width: 100%; }
+}

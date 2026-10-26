@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MessOS</title>
+    <link rel="icon" type="image/png" href="logo.png">
+</head>
+<body>
+    <p>Loading MessOS...</p>
+    <script src="js/api.js"></script>
+    <script>
+        // logged in -> your own home page, otherwise -> login
+        const u = Session.user();
+        location.replace(Session.token() && u ? HOME[u.role] : 'studentlogin.html');
+    </script>
+</body>
+</html>
