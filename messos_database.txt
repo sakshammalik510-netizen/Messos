@@ -1,0 +1,68 @@
+CREATE DATABASE messos;
+\c messos
+CREATE TYPE user_role AS ENUM ('STUDENT', 'STAFF', 'ADMIN');
+CREATE TYPE meal_type AS ENUM ('BREAKFAST', 'LUNCH', 'DINNER');
+CREATE TYPE slot_status AS ENUM ('OPEN', 'LOCKED', 'SERVING', 'CLOSED');
+CREATE TYPE scan_result AS ENUM ('ACCEPTED', 'REJECTED');
+CREATE TABLE users (
+  id             SERIAL PRIMARY KEY,
+  name           TEXT NOT NULL,
+  email          TEXT NOT NULL UNIQUE,
+  reg_no         TEXT UNIQUE,
+  password_hash  TEXT NOT NULL,
+  role           user_role NOT NULL DEFAULT 'STUDENT',
+  email_verified BOOLEAN NOT NULL DEFAULT false,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE meal_slots (
+  id         SERIAL PRIMARY KEY,
+  slot_date  DATE NOT NULL,
+  meal       meal_type NOT NULL,
+  menu       TEXT,
+  cutoff_at  TIMESTAMPTZ NOT NULL,
+  starts_at  TIMESTAMPTZ NOT NULL,
+  ends_at    TIMESTAMPTZ NOT NULL,
+  status     slot_status NOT NULL DEFAULT 'OPEN',
+  UNIQUE (slot_date, meal),
+  CHECK (cutoff_at < starts_at AND starts_at < ends_at)
+);
+CREATE TABLE diet_logs (
+  id         SERIAL PRIMARY KEY,
+  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  preference TEXT,      -- e.g. "no onion or garlic"
+  allergies  TEXT,      -- e.g. "peanuts"
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE opt_ins (
+  user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  slot_id    INT NOT NULL REFERENCES meal_slots(id) ON DELETE CASCADE,
+  opted_in   BOOLEAN NOT NULL DEFAULT true,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, slot_id)
+);
+CREATE TABLE consumption_ledger (
+  id         SERIAL PRIMARY KEY,
+  user_id    INT NOT NULL REFERENCES users(id),
+  slot_id    INT NOT NULL REFERENCES meal_slots(id),
+  staff_id   INT NOT NULL REFERENCES users(id),
+  scanned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, slot_id)
+);
+CREATE TABLE scan_audit (
+  id         SERIAL PRIMARY KEY,
+  user_id    INT REFERENCES users(id),
+  slot_id    INT REFERENCES meal_slots(id),
+  staff_id   INT REFERENCES users(id),
+  result     scan_result NOT NULL,
+  reason     TEXT,
+  scanned_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE headcount_snapshots (
+  slot_id   INT PRIMARY KEY REFERENCES meal_slots(id),
+  projected INT NOT NULL,
+  locked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_optins_slot ON opt_ins (slot_id) WHERE opted_in;
+CREATE INDEX idx_slots_date ON meal_slots (slot_date);
+CREATE INDEX idx_dietlogs_user ON diet_logs (user_id, created_at DESC);
+CREATE INDEX idx_audit_slot ON scan_audit (slot_id, scanned_at);
