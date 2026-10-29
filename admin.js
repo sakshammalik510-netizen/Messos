@@ -1,131 +1,207 @@
-const user = requireLogin('ADMIN', 'STAFF');
-const isAdmin = user.role === 'ADMIN';
-const dayInput = document.getElementById('day');
-const slotSelect = document.getElementById('slot');
-dayInput.value = todayIST();
+/* =====================================================================
+   admin.js  -  shared code used by every admin page.
 
-// kitchen staff only see Forecast and Diet notes
-if (!isAdmin) {
-    document.getElementById('title').textContent = 'Kitchen view';
-    document.querySelectorAll('[data-admin]').forEach((b) => b.remove());
-}
+   IMPORTANT IDEA: all reading/saving of data happens in the "DB" part
+   below. Right now it uses the browser's localStorage (works with no
+   backend, good for a demo). Later, if your team builds the real
+   Express + PostgreSQL server, you only change THIS part to use fetch().
+   The pages themselves stay the same.
+   ===================================================================== */
 
-let slots = [];
-let currentTab = 'forecast';
-const none = (text) => `<span class="muted">${text}</span>`;
-const emptyRow = (cols, text) => `<tr><td colspan="${cols}" class="empty">${text}</td></tr>`;
-
-// ---------- tabs ----------
-document.getElementById('tabs').addEventListener('click', (e) => {
-    const b = e.target.closest('button[data-tab]');
-    if (!b) return;
-    currentTab = b.dataset.tab;
-    document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('active', x === b));
-    document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'tab-' + currentTab));
-    loadTab();
-});
-
-// ---------- forecast (always loaded, it also fills the meal dropdown) ----------
-async function loadForecast() {
-    const box = document.getElementById('forecast');
+// ---------- 1. Tiny database helper (localStorage) ----------
+const DB = {
+  get(key, fallback) {
     try {
-        slots = await api('/admin/forecast?date=' + dayInput.value);
-    } catch (err) {
-        box.innerHTML = `<div class="card empty">${esc(err.message)}</div>`;
-        return;
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
     }
-    const previous = slotSelect.value;
-    slotSelect.innerHTML = slots.length
-        ? slots.map((s) => `<option value="${s.id}">${esc(s.meal.toLowerCase())}</option>`).join('')
-        : '<option value="">no meals on this day</option>';
-    if (slots.some((s) => String(s.id) === previous)) slotSelect.value = previous;
+  },
+  set(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+};
 
-    if (!slots.length) { box.innerHTML = '<div class="card empty">No meals on this day.</div>'; return; }
+// Keys (names of the "boxes" where we store each kind of data)
+const KEYS = {
+  users: "messos_users",
+  slots: "messos_slots",
+  optins: "messos_optins",
+  ledger: "messos_ledger",
+  session: "messos_admin_session"
+};
 
-    box.innerHTML = '<div class="grid">' + slots.map((s) => {
-        const max = Math.max(s.projected, s.served, 1);
-        const surplus = s.phase === 'CLOSED' ? s.projected - s.served : 0;
-        return `<div class="card">
-            <div class="row"><h2 style="text-transform:capitalize">${esc(s.meal.toLowerCase())}</h2><span class="badge ${s.phase}">${s.phase}</span></div>
-            <div class="muted">${s.menu ? esc(s.menu) : 'No menu added'}</div>
-            <div class="stat"><div class="big">${s.projected}</div><div class="label">expected (opted in)${s.locked_headcount != null ? ' - final head-count locked: ' + s.locked_headcount : ''}</div></div>
-            <div class="muted">Expected</div><div class="bar"><i class="proj" style="width:${(s.projected / max) * 100}%"></i></div>
-            <div class="muted">Served so far: <b>${s.served}</b></div><div class="bar"><i class="served" style="width:${(s.served / max) * 100}%"></i></div>
-            ${surplus > 0 ? `<div class="alert"><b>${surplus} surplus plate(s).</b> Food was prepared for people who did not come. Consider redistributing it.</div>` : ''}
-        </div>`;
-    }).join('') + '</div>';
+const EMAIL_DOMAIN = "@mnnit.ac.in";
+
+function isCollegeEmail(email) {
+  return typeof email === "string" && email.toLowerCase().endsWith(EMAIL_DOMAIN);
 }
 
-// ---------- other tabs ----------
-async function loadTab() {
-    if (currentTab === 'forecast') return loadForecast();
-    if (currentTab === 'users') return loadUsers();
-    if (currentTab === 'create') return;
-    if (!slotSelect.value) return;
-    const id = slotSelect.value;
-    try {
-        if (currentTab === 'notes') {
-            const rows = await api('/admin/diet-notes?slotId=' + id);
-            document.getElementById('notes').innerHTML = rows.length
-                ? rows.map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.reg_no)}</td><td>${r.preference ? esc(r.preference) : none('-')}</td><td>${r.allergies ? esc(r.allergies) : none('-')}</td></tr>`).join('')
-                : emptyRow(4, 'No notes or allergies for this meal.');
-        }
-        if (currentTab === 'ledger') {
-            const rows = await api('/admin/ledger?slotId=' + id);
-            document.getElementById('ledger').innerHTML = rows.length
-                ? rows.map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.reg_no)}</td><td>${esc(r.staff)}</td><td>${fmtDateTime(r.scanned_at)}</td></tr>`).join('')
-                : emptyRow(4, 'Nobody has been served yet.');
-        }
-        if (currentTab === 'audit') {
-            const rows = await api('/admin/audit?slotId=' + id);
-            document.getElementById('audit').innerHTML = rows.length
-                ? rows.map((r) => `<tr><td>${fmtDateTime(r.scanned_at)}</td><td>${r.student ? esc(r.student) : none('unknown')}</td>
-                    <td><span class="badge ${r.result}">${r.result}</span></td><td>${r.reason ? esc(r.reason) : ''}</td></tr>`).join('')
-                : emptyRow(4, 'No scans yet.');
-        }
-    } catch (err) { toast(err.message, 'error'); }
+// ---------- 2. Helpers ----------
+function todayStr() {
+  // gives "2026-10-24" style text using the computer's local date
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return d.getFullYear() + "-" + m + "-" + day;
 }
 
-async function loadUsers() {
-    try {
-        const rows = await api('/admin/users');
-        document.getElementById('users').innerHTML = rows.map((u) =>
-            `<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>${esc(u.reg_no)}</td><td>${u.role}</td><td>${u.email_verified ? 'Yes' : 'No'}</td></tr>`).join('');
-    } catch (err) { toast(err.message, 'error'); }
+function newId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-// ---------- add a meal (admin) ----------
-const slotForm = document.getElementById('slot-form');
-if (slotForm) {
-    document.getElementById('f-date').value = todayIST();
-    slotForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const date = document.getElementById('f-date').value;
-        const at = (id) => `${date}T${document.getElementById(id).value}:00+05:30`;   // build a full timestamp with the India offset
-        const cutoff = document.getElementById('f-cutoff').value;
-        const start = document.getElementById('f-start').value;
-        const end = document.getElementById('f-end').value;
-        if (!(cutoff < start && start < end)) return toast('Order must be: cut-off, then start, then end', 'error');
-        try {
-            await api('/admin/slots', {
-                method: 'POST',
-                body: {
-                    date,
-                    meal: document.getElementById('f-meal').value,
-                    menu: document.getElementById('f-menu').value.trim() || undefined,
-                    cutoffAt: at('f-cutoff'), startsAt: at('f-start'), endsAt: at('f-end'),
-                },
-            });
-            toast('Meal created');
-            slotForm.reset();
-            document.getElementById('f-date').value = date;
-            dayInput.value = date;
-            loadForecast();
-        } catch (err) { toast(err.message, 'error'); }   // e.g. a duplicate meal on that date
+// Stops someone typing <script> into a name box and breaking the page
+function esc(text) {
+  const div = document.createElement("div");
+  div.textContent = text == null ? "" : text;
+  return div.innerHTML;
+}
+
+function fmtTime(hhmm) {
+  // "14:41" -> "02:41 pm"
+  const [h, m] = hhmm.split(":").map(Number);
+  const ampm = h >= 12 ? "pm" : "am";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return String(h12).padStart(2, "0") + ":" + String(m).padStart(2, "0") + " " + ampm;
+}
+
+// Turns a slot's date + time text into a real Date object we can compare
+function slotDate(slot, timeField) {
+  return new Date(slot.date + "T" + slot[timeField]);
+}
+
+// Open -> before cut-off | Locked -> after cut-off, before meal ends | Closed -> meal over
+function slotStatus(slot) {
+  const now = new Date();
+  const cutoff = slotDate(slot, "cutoffTime");
+  const end = new Date(slotDate(slot, "startTime").getTime() + 2 * 60 * 60 * 1000); // meal lasts 2 hours
+  if (now < cutoff) return "open";
+  if (now < end) return "locked";
+  return "closed";
+}
+
+// Head-count for ONE meal slot, so every page shows the same numbers.
+//   optedIn   = students who are registered right now and opted in (forecast)
+//   served    = different students served (each student counted once)
+//   remaining = opted in but not served yet
+function headCount(slot) {
+  const studentIds = new Set(DB.get(KEYS.users, []).filter(u => u.role === "student").map(u => u.id));
+  const optedInIds = new Set(
+    DB.get(KEYS.optins, [])
+      .filter(o => o.slotId === slot.id && o.optedIn && studentIds.has(o.userId))
+      .map(o => o.userId)
+  );
+  const servedIds = new Set(
+    DB.get(KEYS.ledger, [])
+      .filter(l => l.slotId === slot.id && l.result === "accepted")
+      .map(l => l.userId)
+  );
+  const servedOptedIn = [...servedIds].filter(id => optedInIds.has(id)).length;
+  return {
+    optedIn: optedInIds.size,
+    served: servedIds.size,
+    remaining: Math.max(0, optedInIds.size - servedOptedIn)
+  };
+}
+
+// ---------- 3. Demo data (only created the first time) ----------
+function seedIfEmpty() {
+  if (DB.get(KEYS.users, null)) return; // data already exists, do nothing
+
+  const users = [
+    { id: "u1", name: "Aarav",  email: "aarav@mnnit.ac.in",  regNo: "20265001", role: "student" },
+    { id: "u2", name: "Diya",   email: "diya@mnnit.ac.in",   regNo: "20265002", role: "student" },
+    { id: "u3", name: "Rohan",  email: "rohan@mnnit.ac.in",  regNo: "20265003", role: "student" },
+    { id: "u4", name: "Meera",  email: "meera@mnnit.ac.in",  regNo: "20265004", role: "student" },
+    { id: "u5", name: "Kabir",  email: "kabir@mnnit.ac.in",  regNo: "20265005", role: "student" },
+    { id: "s1", name: "Ramesh (kitchen)", email: "ramesh@mnnit.ac.in", regNo: "-", role: "staff" },
+    { id: "a1", name: "Admin",  email: "admin@mnnit.ac.in",  regNo: "-", role: "admin" }
+  ];
+
+  const t = todayStr();
+  const slots = [
+    { id: "m1", date: t, mealType: "Breakfast", items: "Poha, tea",     startTime: "08:00", cutoffTime: "06:00" },
+    { id: "m2", date: t, mealType: "Lunch",     items: "Dal, rice, roti", startTime: "13:00", cutoffTime: "11:00" },
+    { id: "m3", date: t, mealType: "Dinner",    items: "Paneer, roti",   startTime: "19:41", cutoffTime: "17:41" }
+  ];
+
+  // every student opted in for everything except Kabir skipping breakfast
+  const optins = [];
+  users.filter(u => u.role === "student").forEach(u => {
+    slots.forEach(s => {
+      optins.push({ userId: u.id, slotId: s.id, optedIn: !(u.id === "u5" && s.id === "m1") });
     });
+  });
+
+  DB.set(KEYS.users, users);
+  DB.set(KEYS.slots, slots);
+  DB.set(KEYS.optins, optins);
+  DB.set(KEYS.ledger, []);
 }
 
-dayInput.addEventListener('change', async () => { await loadForecast(); loadTab(); });
-slotSelect.addEventListener('change', loadTab);
-loadForecast();
-setInterval(() => { if (currentTab === 'forecast') loadForecast(); }, 30000);   // keep the live numbers fresh
+function migrateUsers() {
+  const users = DB.get(KEYS.users, []);
+  let changed = false;
+
+  users.forEach(user => {
+    if (typeof user.email === "string" && /@college\.edu$/i.test(user.email)) {
+      user.email = user.email.replace(/@college\.edu$/i, EMAIL_DOMAIN);
+      changed = true;
+    }
+    if (Object.prototype.hasOwnProperty.call(user, "diet")) {
+      delete user.diet;
+      changed = true;
+    }
+  });
+
+  if (changed) DB.set(KEYS.users, users);
+}
+
+// ---------- 4. Login guard ----------
+function requireAdmin() {
+  const session = DB.get(KEYS.session, null);
+  const user = session && DB.get(KEYS.users, []).find(account => account.id === session.id);
+  if (!user || !["admin", "staff"].includes(user.role)) {
+    localStorage.removeItem(KEYS.session);
+    location.replace("studentlogin.html");
+    return null;
+  }
+
+  session.name = user.name;
+  session.role = user.role;
+  DB.set(KEYS.session, session);
+  return session;
+}
+
+// ---------- 5. Draw the green top bar on every page ----------
+function renderNav(activePage) {
+  const session = requireAdmin();
+  if (!session) return;
+
+  const links = [
+    ["admin-dashboard.html", "Dashboard", "dashboard"],
+    ["admin-menu.html",      "Menu & cut-off", "menu"],
+    ["admin-users.html",     "Users", "users"],
+    ["admin-audit.html",     "Audit trail", "audit"]
+  ];
+  const linkHtml = links
+    .map(l => `<a href="${l[0]}" class="${l[2] === activePage ? "active" : ""}">${l[1]}</a>`)
+    .join("");
+
+  document.getElementById("topbar").innerHTML = `
+    <div class="topbar">
+      <span class="brand">MessOS</span>
+      <nav>${linkHtml}</nav>
+      <span class="who">${esc(session.name)} (${esc(session.role)})</span>
+      <button class="btn-logout" id="logoutBtn">Log out</button>
+    </div>`;
+
+  document.getElementById("logoutBtn").onclick = function () {
+    localStorage.removeItem(KEYS.session);
+    location.href = "studentlogin.html";
+  };
+}
+
+seedIfEmpty();
+migrateUsers();

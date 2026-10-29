@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MessOS - Users</title>
+  <link rel="stylesheet" href="admin.css">
+   <link rel="icon" href="logo.png">
+</head>
+<body>
+  <div id="topbar"></div>
+
+  <main>
+    <h1>Manage users</h1>
+    <p class="sub">Add students and staff, and change user roles.</p>
+
+    <div class="card">
+      <h2>Add a user</h2>
+      <form class="row" id="userForm">
+        <div><label>Name</label><input type="text" id="uName" required></div>
+        <div><label>MNNIT email</label><input type="email" id="uEmail" placeholder="name@mnnit.ac.in" required></div>
+        <div><label>Reg. no.</label><input type="text" id="uReg" placeholder="20265xxx"></div>
+        <div>
+          <label>Role</label>
+          <select id="uRole"><option value="student">student</option><option value="staff">staff</option><option value="admin">admin</option></select>
+        </div>
+        <button class="primary" type="submit">Add user</button>
+      </form>
+      <p id="userMsg" class="sub" style="margin-top:10px"></p>
+    </div>
+
+    <div class="card">
+      <h2>All users</h2>
+      <input type="text" id="search" placeholder="Search by name or email" style="margin-bottom:12px;width:100%;max-width:320px">
+      <table>
+        <thead><tr><th>Name</th><th>Email</th><th>Reg. no.</th><th>Role</th><th></th></tr></thead>
+        <tbody id="userRows"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="admin.js"></script>
+  <script>
+    renderNav("users");
+
+    function drawUsers() {
+      const q = document.getElementById("search").value.toLowerCase();
+      const users = DB.get(KEYS.users, []).filter(u =>
+        u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+      );
+
+      let html = "";
+      users.forEach(u => {
+        html += `<tr>
+          <td>${esc(u.name)}</td>
+          <td>${esc(u.email)}</td>
+          <td>${esc(u.regNo)}</td>
+          <td>
+            <select onchange="changeRole('${u.id}', this.value)">
+              ${["student","staff","admin"].map(r =>
+                `<option value="${r}" ${u.role === r ? "selected" : ""}>${r}</option>`).join("")}
+            </select>
+          </td>
+          <td><button class="small danger" onclick="removeUser('${u.id}')">Remove</button></td>
+        </tr>`;
+      });
+      document.getElementById("userRows").innerHTML =
+        html || `<tr><td colspan="5" class="empty">No users found.</td></tr>`;
+    }
+
+    document.getElementById("search").addEventListener("input", drawUsers);
+
+    document.getElementById("userForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const email = document.getElementById("uEmail").value.trim().toLowerCase();
+      const msg = document.getElementById("userMsg");
+
+      if (!isCollegeEmail(email)) { msg.textContent = "Only @mnnit.ac.in emails are allowed."; return; }
+
+      const users = DB.get(KEYS.users, []);
+      if (users.some(u => u.email === email)) { msg.textContent = "That email is already registered."; return; }
+
+      const user = {
+        id: newId(),
+        name: document.getElementById("uName").value.trim(),
+        email: email,
+        regNo: document.getElementById("uReg").value.trim() || "-",
+        role: document.getElementById("uRole").value,
+      };
+      users.push(user);
+      DB.set(KEYS.users, users);
+
+      // new students get opted in to all existing meals
+      if (user.role === "student") {
+        const optins = DB.get(KEYS.optins, []);
+        DB.get(KEYS.slots, []).forEach(s => optins.push({ userId: user.id, slotId: s.id, optedIn: true }));
+        DB.set(KEYS.optins, optins);
+      }
+
+      msg.textContent = "User added.";
+      this.reset();
+      drawUsers();
+    });
+
+    function changeRole(id, role) {
+      const users = DB.get(KEYS.users, []);
+      users.find(u => u.id === id).role = role;
+      DB.set(KEYS.users, users);
+    }
+
+    function removeUser(id) {
+      if (!confirm("Remove this user?")) return;
+      DB.set(KEYS.users,  DB.get(KEYS.users, []).filter(u => u.id !== id));
+      DB.set(KEYS.optins, DB.get(KEYS.optins, []).filter(o => o.userId !== id));
+      drawUsers();
+    }
+
+    drawUsers();
+  </script>
+</body>
+</html>

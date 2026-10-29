@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MessOS - Audit trail</title>
+  <link rel="stylesheet" href="admin.css">
+   <link rel="icon"  href="logo.png">
+</head>
+<body>
+  <div id="topbar"></div>
+
+  <main>
+    <h1>Audit trail</h1>
+    <p class="sub">Every scan, accepted or rejected, with the time and the staff member.</p>
+
+    <!-- Demo tool: pretend a staff member scanned a student, to test the "one meal per student" rule -->
+    <div class="card">
+      <h2>Demo: simulate a scan</h2>
+      <form class="row" id="scanForm">
+        <div><label>Student</label><select id="sStudent"></select></div>
+        <div><label>Meal</label><select id="sSlot"></select></div>
+        <button class="primary" type="submit">Scan</button>
+      </form>
+      <p id="scanMsg" class="sub" style="margin-top:10px"></p>
+    </div>
+
+    <div class="card">
+      <h2>Ledger</h2>
+      <table>
+        <thead><tr><th>Time</th><th>Student</th><th>Meal</th><th>Staff</th><th>Result</th></tr></thead>
+        <tbody id="logRows"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="admin.js"></script>
+  <script>
+    renderNav("audit");
+
+    function fillDropdowns() {
+      const students = DB.get(KEYS.users, []).filter(u => u.role === "student");
+      const slots = DB.get(KEYS.slots, []).filter(s => s.date === todayStr());
+      document.getElementById("sStudent").innerHTML =
+        students.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join("");
+      document.getElementById("sSlot").innerHTML =
+        slots.map(s => `<option value="${s.id}">${esc(s.mealType)}</option>`).join("");
+    }
+
+    function drawLedger() {
+      const users = DB.get(KEYS.users, []);
+      const slots = DB.get(KEYS.slots, []);
+      const ledger = DB.get(KEYS.ledger, []).slice().reverse();   // newest first
+
+      let html = "";
+      ledger.forEach(l => {
+        const u = users.find(x => x.id === l.userId);
+        const s = slots.find(x => x.id === l.slotId);
+        const ok = l.result === "accepted";
+        html += `<tr>
+          <td>${new Date(l.scannedAt).toLocaleString()}</td>
+          <td>${esc(u ? u.name : "(deleted)")}</td>
+          <td>${esc(s ? s.mealType + " " + s.date : "(deleted)")}</td>
+          <td>${esc(l.staffName)}</td>
+          <td><span class="badge ${ok ? "ok" : "bad"}">${esc(l.reason)}</span></td>
+        </tr>`;
+      });
+      document.getElementById("logRows").innerHTML =
+        html || `<tr><td colspan="5" class="empty">No scans yet.</td></tr>`;
+    }
+
+    // This mirrors what your real server will do: check opt-in, block a second meal, log everything
+    document.getElementById("scanForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const userId = document.getElementById("sStudent").value;
+      const slotId = document.getElementById("sSlot").value;
+      const msg = document.getElementById("scanMsg");
+      if (!userId || !slotId) { msg.textContent = "Pick a student and a meal."; return; }
+
+      const ledger = DB.get(KEYS.ledger, []);
+      const optin = DB.get(KEYS.optins, []).find(o => o.userId === userId && o.slotId === slotId);
+      const alreadyServed = ledger.some(l => l.userId === userId && l.slotId === slotId && l.result === "accepted");
+
+      let result = "accepted", reason = "served";
+      if (alreadyServed)                   { result = "rejected"; reason = "already served"; }
+      else if (!optin || !optin.optedIn)   { result = "rejected"; reason = "not opted in"; }
+
+      ledger.push({
+        id: newId(), userId, slotId,
+        scannedAt: new Date().toISOString(),
+        staffName: "Ramesh (kitchen)",
+        result, reason
+      });
+      DB.set(KEYS.ledger, ledger);
+
+      msg.textContent = result === "accepted" ? "GREEN: meal served." : "RED: " + reason + ".";
+      drawLedger();
+    });
+
+    fillDropdowns();
+    drawLedger();
+  </script>
+</body>
+</html>

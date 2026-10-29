@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MessOS - Menu & cut-off</title>
+  <link rel="stylesheet" href="admin.css">
+   <link rel="icon" href="logo.png">
+</head>
+<body>
+  <div id="topbar"></div>
+
+  <main>
+    <h1>Menu & cut-off times</h1>
+    <p class="sub">Add a meal slot. Students can opt in or out until the cut-off time, then the slot locks.</p>
+
+    <!-- FORM: add a new meal slot -->
+    <div class="card">
+      <h2>Add a meal slot</h2>
+      <form class="row" id="slotForm">
+        <div><label>Date</label><input type="date" id="fDate" required></div>
+        <div>
+          <label>Meal</label>
+          <select id="fMeal">
+            <option>Breakfast</option><option>Lunch</option><option>Dinner</option>
+          </select>
+        </div>
+        <div><label>Menu items</label><input type="text" id="fItems" placeholder="e.g. Dal, rice, roti" required></div>
+        <div><label>Serving starts</label><input type="time" id="fStart" required></div>
+        <div><label>Cut-off time</label><input type="time" id="fCutoff" required></div>
+        <button class="primary" type="submit">Add slot</button>
+      </form>
+      <p id="formMsg" class="sub" style="margin-top:10px"></p>
+    </div>
+
+    <!-- TABLE: all slots -->
+    <div class="card">
+      <h2>All meal slots</h2>
+      <table>
+        <thead><tr><th>Date</th><th>Meal</th><th>Menu</th><th>Starts</th><th>Cut-off</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="slotRows"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="admin.js"></script>
+  <script>
+    renderNav("menu");
+    document.getElementById("fDate").value = todayStr();   // default date = today
+
+    // ---- show the table ----
+    function drawSlots() {
+      const slots = DB.get(KEYS.slots, []);
+      // sort by date then start time
+      slots.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+
+      let html = "";
+      slots.forEach(s => {
+        const status = slotStatus(s);
+        html += `<tr>
+          <td>${esc(s.date)}</td>
+          <td><b>${esc(s.mealType)}</b></td>
+          <td>${esc(s.items)}</td>
+          <td>${fmtTime(s.startTime)}</td>
+          <td><input type="time" value="${s.cutoffTime}" id="cut-${s.id}"></td>
+          <td><span class="badge ${status}">${status}</span></td>
+          <td>
+            <button class="small" onclick="saveCutoff('${s.id}')">Save cut-off</button>
+            <button class="small danger" onclick="deleteSlot('${s.id}')">Delete</button>
+          </td>
+        </tr>`;
+      });
+      document.getElementById("slotRows").innerHTML =
+        html || `<tr><td colspan="7" class="empty">No slots yet. Add your first one above.</td></tr>`;
+    }
+
+    // ---- add a slot ----
+    document.getElementById("slotForm").addEventListener("submit", function (event) {
+      event.preventDefault();                    // stop the page from reloading
+
+      const start  = document.getElementById("fStart").value;
+      const cutoff = document.getElementById("fCutoff").value;
+      const msg = document.getElementById("formMsg");
+
+      // validation: cut-off must be BEFORE serving starts
+      if (cutoff >= start) {
+        msg.textContent = "Cut-off must be earlier than the serving start time.";
+        return;
+      }
+
+      const slots = DB.get(KEYS.slots, []);
+      const newSlot = {
+        id: newId(),
+        date: document.getElementById("fDate").value,
+        mealType: document.getElementById("fMeal").value,
+        items: document.getElementById("fItems").value.trim(),
+        startTime: start,
+        cutoffTime: cutoff
+      };
+
+      // don't allow two "Lunch" slots on the same date
+      if (slots.some(s => s.date === newSlot.date && s.mealType === newSlot.mealType)) {
+        msg.textContent = newSlot.mealType + " already exists for that date.";
+        return;
+      }
+
+      slots.push(newSlot);
+      DB.set(KEYS.slots, slots);
+
+      // by default every student is opted in to the new meal
+      const users = DB.get(KEYS.users, []);
+      const optins = DB.get(KEYS.optins, []);
+      users.filter(u => u.role === "student").forEach(u => {
+        optins.push({ userId: u.id, slotId: newSlot.id, optedIn: true });
+      });
+      DB.set(KEYS.optins, optins);
+
+      msg.textContent = "Slot added.";
+      this.reset();
+      document.getElementById("fDate").value = todayStr();
+      drawSlots();
+    });
+
+    // ---- change cut-off of an existing slot ----
+    function saveCutoff(id) {
+      const slots = DB.get(KEYS.slots, []);
+      const slot = slots.find(s => s.id === id);
+      const newCut = document.getElementById("cut-" + id).value;
+      if (newCut >= slot.startTime) { alert("Cut-off must be before the serving time."); return; }
+      slot.cutoffTime = newCut;
+      DB.set(KEYS.slots, slots);
+      drawSlots();
+    }
+
+    // ---- delete a slot (and its opt-ins) ----
+    function deleteSlot(id) {
+      if (!confirm("Delete this meal slot?")) return;
+      DB.set(KEYS.slots,  DB.get(KEYS.slots, []).filter(s => s.id !== id));
+      DB.set(KEYS.optins, DB.get(KEYS.optins, []).filter(o => o.slotId !== id));
+      drawSlots();
+    }
+
+    drawSlots();
+  </script>
+</body>
+</html>

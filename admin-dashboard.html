@@ -1,77 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MessOS - Admin</title>
-    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css">
-    <link rel="icon" type="image/png" href="logo.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MessOS - Admin Dashboard</title>
+  <link rel="stylesheet" href="admin.css">
+   <link rel="icon" href="logo.png">
 </head>
 <body>
-    <header class="topbar" id="topbar"></header>
-    <main class="page">
-        <h1 id="title">Admin dashboard</h1>
-        <p class="sub">Head-count forecast, meal setup, records and food waste at a glance.</p>
+  <div id="topbar"></div>
 
-        <div class="card inline">
-            <div><label for="day">Date</label><input type="date" id="day"></div>
-            <div><label for="slot">Meal (for notes, ledger and audit)</label><select id="slot"></select></div>
-        </div>
+  <main>
+    <h1>Admin dashboard</h1>
+    <p class="sub">Today's head-count forecast (opted in) next to the actual meals served.</p>
 
-        <div class="tabs" id="tabs">
-            <button data-tab="forecast" class="active">Forecast</button>
-            <button data-tab="notes">Diet notes</button>
-            <button data-tab="ledger" data-admin>Ledger</button>
-            <button data-tab="audit" data-admin>Audit</button>
-            <button data-tab="create" data-admin>Add meal</button>
-            <button data-tab="users" data-admin>Users</button>
-        </div>
+    <!-- 4 summary boxes, filled by JavaScript below -->
+    <div class="stats">
+      <div class="card stat"><div class="num" id="statStudents">0</div><div class="label">students registered</div></div>
+      <div class="card stat"><div class="num" id="statMeals">0</div><div class="label">meals scheduled today</div></div>
+      <div class="card stat"><div class="num" id="statForecast">0</div><div class="label">total opted in today</div></div>
+      <div class="card stat"><div class="num" id="statServed">0</div><div class="label">total served today</div></div>
+    </div>
 
-        <section class="panel active" id="tab-forecast">
-            <div id="forecast"></div>
-        </section>
+    <div class="card">
+      <h2>Today's meals</h2>
+      <table>
+        <thead>
+          <tr><th>Meal</th><th>Menu</th><th>Cut-off</th><th>Status</th><th>Forecast</th><th>Served</th><th>Progress</th></tr>
+        </thead>
+        <tbody id="mealRows"></tbody>
+      </table>
+    </div>
+  </main>
 
-        <section class="panel" id="tab-notes"><div class="card">
-            <h2>Diet notes of students who are opted in</h2>
-            <div class="table-wrap"><table><thead><tr><th>Student</th><th>Reg. no.</th><th>Preference</th><th>Allergies</th></tr></thead><tbody id="notes"></tbody></table></div>
-        </div></section>
+  <script src="admin.js"></script>
+  <script>
+    renderNav("dashboard");
 
-        <section class="panel" id="tab-ledger"><div class="card">
-            <h2>Consumption ledger</h2>
-            <div class="table-wrap"><table><thead><tr><th>Student</th><th>Reg. no.</th><th>Served by</th><th>Time</th></tr></thead><tbody id="ledger"></tbody></table></div>
-        </div></section>
+    function loadDashboard() {
+      // Step 1: read everything we need from storage
+      const users  = DB.get(KEYS.users, []);
+      const slots  = DB.get(KEYS.slots, []);
+      const optins = DB.get(KEYS.optins, []);
+      const ledger = DB.get(KEYS.ledger, []);
 
-        <section class="panel" id="tab-audit"><div class="card">
-            <h2>Scan audit (every scan, including rejected)</h2>
-            <div class="table-wrap"><table><thead><tr><th>Time</th><th>Student</th><th>Result</th><th>Reason</th></tr></thead><tbody id="audit"></tbody></table></div>
-        </div></section>
+      // Step 2: keep only today's meals
+      const todaySlots = slots.filter(s => s.date === todayStr());
 
-        <section class="panel" id="tab-create"><div class="card">
-            <h2>Add a meal</h2>
-            <p class="muted">Every student is opted in by default. Times are in Indian time.</p>
-            <form id="slot-form">
-                <div class="form-grid">
-                    <div><label for="f-date">Date</label><input type="date" id="f-date" required></div>
-                    <div><label for="f-meal">Meal</label>
-                        <select id="f-meal"><option>BREAKFAST</option><option>LUNCH</option><option>DINNER</option></select></div>
-                    <div><label for="f-cutoff">Cut-off time</label><input type="time" id="f-cutoff" required></div>
-                    <div><label for="f-start">Serving starts</label><input type="time" id="f-start" required></div>
-                    <div><label for="f-end">Serving ends</label><input type="time" id="f-end" required></div>
-                </div>
-                <label for="f-menu">Menu</label>
-                <input id="f-menu" maxlength="300" placeholder="e.g. Dal, rice, roti, salad">
-                <div style="margin-top:14px"><button class="btn" type="submit">Create meal</button></div>
-            </form>
-        </div></section>
+      // Step 3: for each meal, count forecast and served
+      let totalForecast = 0, totalServed = 0;
+      let html = "";
 
-        <section class="panel" id="tab-users"><div class="card">
-            <h2>All users</h2>
-            <div class="table-wrap"><table><thead><tr><th>Name</th><th>E-mail</th><th>Reg. no.</th><th>Role</th><th>Verified</th></tr></thead><tbody id="users"></tbody></table></div>
-        </div></section>
-    </main>
-    <script src="js/api.js"></script>
-    <script src="js/layout.js"></script>
-    <script src="js/admin.js"></script>
+      todaySlots.forEach(slot => {
+        const forecast = optins.filter(o => o.slotId === slot.id && o.optedIn).length;
+        const served = ledger.filter(l => l.slotId === slot.id && l.result === "accepted").length;
+        const pct = forecast === 0 ? 0 : Math.min(100, Math.round((served / forecast) * 100));
+        const status = slotStatus(slot);
+
+        totalForecast += forecast;
+        totalServed += served;
+
+        html += `<tr>
+          <td><b>${esc(slot.mealType)}</b></td>
+          <td>${esc(slot.items)}</td>
+          <td>${fmtTime(slot.cutoffTime)}</td>
+          <td><span class="badge ${status}">${status}</span></td>
+          <td>${forecast}</td>
+          <td>${served}</td>
+          <td><div class="bar"><span style="width:${pct}%"></span></div></td>
+        </tr>`;
+      });
+
+      document.getElementById("mealRows").innerHTML =
+        html || `<tr><td colspan="7" class="empty">No meals scheduled for today. Add one in "Menu & cut-off".</td></tr>`;
+
+      // Step 4: fill the summary boxes
+      document.getElementById("statStudents").textContent = users.filter(u => u.role === "student").length;
+      document.getElementById("statMeals").textContent = todaySlots.length;
+      document.getElementById("statForecast").textContent = totalForecast;
+      document.getElementById("statServed").textContent = totalServed;
+    }
+
+    loadDashboard();
+    setInterval(loadDashboard, 30000); // refresh every 30 seconds so statuses update by themselves
+  </script>
 </body>
 </html>
